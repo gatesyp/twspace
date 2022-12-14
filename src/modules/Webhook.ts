@@ -13,10 +13,7 @@ import { configManager } from './ConfigManager'
 export class Webhook {
   private logger: winston.Logger
 
-  constructor(
-    private readonly audioSpace: AudioSpace,
-    private readonly masterUrl: string,
-  ) {
+  constructor(private readonly audioSpace: AudioSpace, private readonly masterUrl: string) {
     const username = SpaceUtil.getHostUsername(audioSpace)
     const spaceId = SpaceUtil.getId(audioSpace)
     this.logger = baseLogger.child({ label: `[Webhook] [${username}] [${spaceId}]` })
@@ -28,6 +25,8 @@ export class Webhook {
   }
 
   public send() {
+    // run curl command
+    this.logger.info('WHATHSLKJER:LKJE:LKJ:LKJ')
     this.sendDiscord()
   }
 
@@ -49,37 +48,48 @@ export class Webhook {
   }
 
   private sendDiscord() {
-    this.logger.debug('sendDiscord')
     const configs = Array.from(this.config?.discord || [])
     configs.forEach((config) => {
       if (!config.active) {
         return
       }
-      const urls = Array.from(config.urls || [])
-        .filter((v) => v)
+      const urls = Array.from(config.urls || []).filter((v) => v)
       const usernames = Array.from(config.usernames || [])
         .filter((v) => v)
         .map((v) => v.toLowerCase())
       if (!urls.length || !usernames.length) {
         return
       }
-      if (!usernames.find((v) => v === '<all>') && usernames.every((v) => !SpaceUtil.isParticipant(this.audioSpace, v))) {
+      if (
+        !usernames.find((v) => v === '<all>') &&
+        usernames.every((v) => !SpaceUtil.isParticipant(this.audioSpace, v))
+      ) {
         return
       }
       try {
         // Build content with mentions
         let content = ''
         if (this.audioSpace.metadata.state === SpaceMetadataState.RUNNING) {
-          Array.from(config.mentions?.roleIds || []).map((v) => v).forEach((roleId) => {
-            content += `<@&${roleId}> `
-          })
-          Array.from(config.mentions?.userIds || []).map((v) => v).forEach((userId) => {
-            content += `<@${userId}> `
-          })
-          content = [content, config.startMessage].filter((v) => v).map((v) => v.trim()).join(' ')
+          Array.from(config.mentions?.roleIds || [])
+            .map((v) => v)
+            .forEach((roleId) => {
+              content += `<@&${roleId}> `
+            })
+          Array.from(config.mentions?.userIds || [])
+            .map((v) => v)
+            .forEach((userId) => {
+              content += `<@${userId}> `
+            })
+          content = [content, config.startMessage]
+            .filter((v) => v)
+            .map((v) => v.trim())
+            .join(' ')
         }
         if (this.audioSpace.metadata.state === SpaceMetadataState.ENDED) {
-          content = [content, config.endMessage].filter((v) => v).map((v) => v.trim()).join(' ')
+          content = [content, config.endMessage]
+            .filter((v) => v)
+            .map((v) => v.trim())
+            .join(' ')
         }
         content = content.trim()
         // Build request payload
@@ -99,15 +109,15 @@ export class Webhook {
     const hostUsername = SpaceUtil.getHostUsername(this.audioSpace)
     const host = inlineCode(hostUsername)
 
-    if (!usernames.some((v) => v.toLowerCase() === hostUsername.toLowerCase())
-      && usernames.some((v) => SpaceUtil.isAdmin(this.audioSpace, v))) {
+    if (
+      !usernames.some((v) => v.toLowerCase() === hostUsername.toLowerCase()) &&
+      usernames.some((v) => SpaceUtil.isAdmin(this.audioSpace, v))
+    ) {
       const participants = usernames
         .map((v) => SpaceUtil.getParticipant(this.audioSpace.participants.admins, v))
         .filter((v) => v)
       if (participants.length) {
-        const guests = participants
-          .map((v) => inlineCode(v.twitter_screen_name))
-          .join(', ')
+        const guests = participants.map((v) => inlineCode(v.twitter_screen_name)).join(', ')
         return `${guests} is co-hosting ${host}'s Space`
       }
     }
@@ -117,9 +127,7 @@ export class Webhook {
         .map((v) => SpaceUtil.getParticipant(this.audioSpace.participants.speakers, v))
         .filter((v) => v)
       if (participants.length) {
-        const guests = participants
-          .map((v) => inlineCode(v.twitter_screen_name))
-          .join(', ')
+        const guests = participants.map((v) => inlineCode(v.twitter_screen_name)).join(', ')
         return `${guests} is speaking in ${host}'s Space`
       }
     }
@@ -129,9 +137,7 @@ export class Webhook {
         .map((v) => SpaceUtil.getParticipant(this.audioSpace.participants.listeners, v))
         .filter((v) => v)
       if (participants.length) {
-        const guests = participants
-          .map((v) => inlineCode(v.twitter_screen_name))
-          .join(', ')
+        const guests = participants.map((v) => inlineCode(v.twitter_screen_name)).join(', ')
         return `${guests} is listening in ${host}'s Space`
       }
     }
@@ -149,37 +155,39 @@ export class Webhook {
       },
     ]
 
-    if ([SpaceMetadataState.RUNNING, SpaceMetadataState.ENDED].includes(this.audioSpace.metadata.state as any)) {
+    if (
+      [SpaceMetadataState.RUNNING, SpaceMetadataState.ENDED].includes(
+        this.audioSpace.metadata.state as any,
+      )
+    ) {
       if (this.audioSpace.metadata.started_at) {
-        fields.push(
-          {
-            name: '▶️ Started at',
-            value: Webhook.getEmbedLocalTime(this.audioSpace.metadata.started_at),
-            inline: true,
-          },
-        )
+        fields.push({
+          name: '▶️ Started at',
+          value: Webhook.getEmbedLocalTime(this.audioSpace.metadata.started_at),
+          inline: true,
+        })
       }
     }
 
     if ([SpaceMetadataState.ENDED].includes(this.audioSpace.metadata.state as any)) {
       if (this.audioSpace.metadata.ended_at) {
-        fields.push(
-          {
-            name: '⏹️ Ended at',
-            value: Webhook.getEmbedLocalTime(this.audioSpace.metadata.ended_at),
-            inline: true,
-          },
-        )
+        fields.push({
+          name: '⏹️ Ended at',
+          value: Webhook.getEmbedLocalTime(this.audioSpace.metadata.ended_at),
+          inline: true,
+        })
       }
     }
 
-    if ([SpaceMetadataState.RUNNING, SpaceMetadataState.ENDED].includes(this.audioSpace.metadata.state as any)) {
-      fields.push(
-        {
-          name: 'Playlist url',
-          value: codeBlock(this.masterUrl),
-        },
+    if (
+      [SpaceMetadataState.RUNNING, SpaceMetadataState.ENDED].includes(
+        this.audioSpace.metadata.state as any,
       )
+    ) {
+      fields.push({
+        name: 'Playlist url',
+        value: codeBlock(this.masterUrl),
+      })
     }
 
     const embed = {
@@ -206,9 +214,6 @@ export class Webhook {
     if (!ms) {
       return null
     }
-    return [
-      time(Math.floor(ms / 1000)),
-      time(Math.floor(ms / 1000), 'R'),
-    ].join('\n')
+    return [time(Math.floor(ms / 1000)), time(Math.floor(ms / 1000), 'R')].join('\n')
   }
 }

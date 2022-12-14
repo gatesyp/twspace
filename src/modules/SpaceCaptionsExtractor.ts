@@ -5,21 +5,28 @@ import { MessageKind } from '../enums/Periscope.enum'
 import { ChatMessage } from '../interfaces/Periscope.interface'
 import { logger as baseLogger } from '../logger'
 import { Util } from '../utils/Util'
+import axios from 'axios'
 
 export class SpaceCaptionsExtractor {
   private logger: winston.Logger
+  private filename: string
 
   constructor(
     private inpFile: string,
     private outFile?: string,
     private startedAt?: number,
+    filename?: string,
   ) {
     this.logger = baseLogger.child({ label: '[SpaceCaptionsExtractor]' })
 
+    if (!filename) {
+      this.filename = ''
+    } else {
+      this.filename = filename
+    }
+
     this.inpFile = inpFile
-    this.outFile = outFile === inpFile
-      ? `${outFile}.txt`
-      : (outFile || `${inpFile}.txt`)
+    this.outFile = outFile === inpFile ? `${outFile}.txt` : outFile || `${inpFile}.txt`
   }
 
   public async extract() {
@@ -55,6 +62,9 @@ export class SpaceCaptionsExtractor {
           this.logger.error(`Failed to process line ${lineCount}: ${error.message}`)
         }
       })
+
+      // we are done processinglines
+      // now lets send the txt file or host it somehow
       rl.once('close', () => {
         this.logger.info(`Captions saved to ${this.outFile}`)
         resolve()
@@ -78,6 +88,20 @@ export class SpaceCaptionsExtractor {
     this.processChatData(obj.body)
   }
 
+  private async sendSlack(msg: string) {
+    const response = await axios.post(
+      process.env.SLACKBOT_WEBHOOK,
+      {
+        text: this.filename.concat(msg),
+      },
+      {
+        headers: {
+          'Content-type': 'application/json',
+        },
+      },
+    )
+  }
+
   private processChatData(payload: string) {
     const obj = JSON.parse(payload)
     if (!obj.final || !obj.body) {
@@ -87,6 +111,12 @@ export class SpaceCaptionsExtractor {
       ? `${Util.getDisplayTime(Math.max(0, obj.timestamp - this.startedAt))} | `
       : ''
     const msg = `${time}${obj.username}: ${obj.body}\n`
+    const re = new RegExp('subnet')
+    if (re.test(msg)) {
+      this.logger.info('WE FOUND A SUBNET BY GOLLIE!')
+      this.sendSlack(msg)
+    }
+
     fs.appendFileSync(this.outFile, msg)
   }
 }

@@ -1,119 +1,125 @@
 #!/usr/bin/env node
 
-import axios from 'axios'
-import { Command, program } from 'commander'
-import dotenv from 'dotenv'
-import 'dotenv/config'
-import { ccCommand } from './commands/cc.command'
-import { testCommand } from './commands/test.command'
-import { logger } from './logger'
-import { configManager } from './modules/ConfigManager'
-import { mainManager } from './modules/MainManager'
-import { SpaceDownloader } from './modules/SpaceDownloader'
-import { userManager } from './modules/UserManager'
-import { CommandUtil } from './utils/CommandUtil'
-import { TwitterUtil } from './utils/TwitterUtil'
-import { Util } from './utils/Util'
+import axios from "axios";
+import { Command, program } from "commander";
+import dotenv from "dotenv";
+import "dotenv/config";
+import { ccCommand } from "./commands/cc.command";
+import { testCommand } from "./commands/test.command";
+import { logger } from "./logger";
+import { configManager } from "./modules/ConfigManager";
+import { mainManager } from "./modules/MainManager";
+import { SpaceDownloader } from "./modules/SpaceDownloader";
+import { userManager } from "./modules/UserManager";
+import { CommandUtil } from "./utils/CommandUtil";
+import { TwitterUtil } from "./utils/TwitterUtil";
+import { Util } from "./utils/Util";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const pkg = require('../package.json')
+const pkg = require("../package.json");
+
+console.log("haha hey");
 
 const checkVersion = async () => {
-  const url = 'https://registry.npmjs.org/-/package/twspace-crawler/dist-tags'
+  const url = "https://registry.npmjs.org/-/package/twspace-crawler/dist-tags";
   try {
-    const { data } = await axios.get(url)
-    const latestVersion = data.latest
+    const { data } = await axios.get(url);
+    const latestVersion = data.latest;
     if (latestVersion === pkg.version) {
-      return
+      return;
     }
-    logger.info(`New version: ${latestVersion}`)
-    logger.info(`To update, run: npm i -g ${pkg.name}@latest`)
+    logger.info(`New version: ${latestVersion}`);
+    logger.info(`To update, run: npm i -g ${pkg.name}@latest`);
   } catch (error) {
     // Ignore
   }
-}
+};
 
 program
   .version(pkg.version)
-  .description('CLI app to monitor & download Twitter Spaces.')
-  .option('-d, --debug', 'Show debug logs')
-  .option('--env <ENV_PATH>', 'Path to .env file, default to current working folder (See .env.example)')
-  .option('--config <CONFIG_PATH>', 'Path to config file (See config.example.json)')
-  .option('--user <USER>', 'Monitor & download live Spaces from users, separate by comma (,)')
-  .option('--id <SPACE_ID>', 'Monitor & download live Space with its id')
-  .option('-surl, --space-url <SPACE_URL>', 'Monitor & download live Space with its URL')
-  .option('--force', 'Force download Space when using with --id')
-  .option('--url <PLAYLIST_ID>', 'Download Space using playlist url')
-  .option('--notification', 'Show notification about new live Space')
-  .option('--force-open', 'Force open Space in browser')
+  .description("CLI app to monitor & download Twitter Spaces.")
+  .option("-d, --debug", "Show debug logs")
+  .option("--env <ENV_PATH>", "Path to .env file, default to current working folder (See .env.example)")
+  .option("--config <CONFIG_PATH>", "Path to config file (See config.example.json)")
+  .option("--user <USER>", "Monitor & download live Spaces from users, separate by comma (,)")
+  .option("--id <SPACE_ID>", "Monitor & download live Space with its id")
+  .option("-surl, --space-url <SPACE_URL>", "Monitor & download live Space with its URL")
+  .option("--force", "Force download Space when using with --id")
+  .option("--url <PLAYLIST_ID>", "Download Space using playlist url")
+  .option("--notification", "Show notification about new live Space")
+  .option("--force-open", "Force open Space in browser")
   .addCommand(ccCommand)
-  .addCommand(testCommand)
+  .addCommand(testCommand);
 
 program.action(async (args, cmd: Command) => {
-  logger.info(Array(80).fill('=').join(''))
-  logger.info(`Version: ${pkg.version}`)
-  CommandUtil.detectDebugOption(cmd)
+  logger.info(Array(80).fill("=").join(""));
+  logger.info(`Version: ${pkg.version}`);
+  logger.info("huh");
+  CommandUtil.detectDebugOption(cmd);
 
-  await checkVersion()
+  await checkVersion();
 
-  logger.debug('Args', args)
+  logger.debug("Args", args);
 
   if (args.env) {
-    dotenv.config({ path: args.env })
+    dotenv.config({ path: args.env });
   }
 
-  const envKeys = ['TWITTER_AUTHORIZATION', 'TWITTER_AUTH_TOKEN']
+  const envKeys = ["TWITTER_AUTHORIZATION", "TWITTER_AUTH_TOKEN"];
   envKeys.forEach((key) => {
-    const limit = 16
-    let value = (process.env[key] || '').substring(0, limit)
-    if (value) { value += '****' }
-    logger.debug(`env.${key}=${value}`)
-  })
+    const limit = 16;
+    let value = (process.env[key] || "").substring(0, limit);
+    if (value) {
+      value += "****";
+    }
+    logger.info(`env.${key}=${value}`);
+  });
 
-  configManager.load()
+  configManager.load();
 
-  const {
-    url, id, spaceUrl, user,
-  } = args
+  console.log(args);
+  const { url, id, spaceUrl, user } = args;
 
   if (url && !id && !spaceUrl) {
-    logger.info('Starting in playlist url mode', { url })
-    new SpaceDownloader(url, Util.getDateTimeString()).download()
-    return
+    logger.info("Starting in playlist url mode", { url });
+    new SpaceDownloader(url, Util.getDateTimeString()).download();
+    return;
   }
 
   if (id) {
-    logger.info('Starting in space id mode', { id })
-    mainManager.addSpaceWatcher(id)
-    return
+    logger.info("Starting in space id mode", { id });
+    mainManager.addSpaceWatcher(id);
+    return;
   }
 
   if (spaceUrl) {
-    logger.info('Starting in space url mode', { spaceUrl })
-    const spaceId = TwitterUtil.getSpaceId(spaceUrl)
+    logger.info("Starting in space url mode", { spaceUrl });
+    const spaceId = TwitterUtil.getSpaceId(spaceUrl);
     if (!spaceId) {
-      logger.error(`Space URL invalid: ${spaceUrl}`)
-      return
+      logger.error(`Space URL invalid: ${spaceUrl}`);
+      return;
     }
-    mainManager.addSpaceWatcher(spaceId)
-    return
+    mainManager.addSpaceWatcher(spaceId);
+    return;
   }
 
-  const usernames = [...new Set(
-    (user || '')
-      .split(',')
-      .concat((configManager.config.users || []).map((v) => (typeof v === 'string' ? v : v?.username)))
-      .filter((v) => v),
-  )] as string[]
+  const usernames = [
+    ...new Set(
+      (user || "")
+        .split(",")
+        .concat((configManager.config.users || []).map((v) => (typeof v === "string" ? v : v?.username)))
+        .filter((v) => v)
+    ),
+  ] as string[];
   if (usernames.length) {
-    logger.info('Starting in user mode', { userCount: usernames.length, users: usernames })
-    await userManager.add(usernames)
+    logger.info("Starting in user mode", { userCount: usernames.length, users: usernames });
+    await userManager.add(usernames);
     if (Util.getTwitterAuthorization() || Util.getTwitterAuthToken()) {
-      mainManager.runUserListWatcher()
+      mainManager.runUserListWatcher();
     } else {
-      usernames.forEach((username) => mainManager.addUserWatcher(username))
+      usernames.forEach((username) => mainManager.addUserWatcher(username));
     }
   }
-})
+});
 
-program.parse()
+program.parse();
